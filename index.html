@@ -1,141 +1,310 @@
 <!doctype html>
-<html lang="fr" x-data="app()">
+<html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sélecteur Cisco — Starter</title>
+  <title>Cisco Switch Selector — No‑Zero Results</title>
+  <!-- Tailwind (beau, sans build) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Vue 3 (CDN, compatible GitHub Pages) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100">
   <header class="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur px-4 py-3">
-    <div class="max-w-6xl mx-auto flex items-center justify-between">
-      <h1 class="text-base font-semibold">Sélecteur Cisco — Starter</h1>
-      <div class="text-xs text-slate-400">GitHub Pages</div>
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <h1 class="text-base font-semibold">Cisco Unified Product Selector — Démo</h1>
+      <p class="text-xs text-slate-400">No‑zero results · GitHub Pages ready</p>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto p-4 grid md:grid-cols-[320px,1fr] gap-4">
-    <aside class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-      <h2 class="text-sm font-semibold text-sky-300">Filtres</h2>
-      <div>
-        <label class="text-xs text-slate-400">Famille</label>
-        <select x-model="filters.family" @change="apply()" class="w-full mt-1 rounded-lg bg-slate-900 border border-slate-700 px-2 py-2 text-sm">
-          <option value="">Toutes</option>
-          <option value="Catalyst">Catalyst</option>
-          <option value="Meraki">Meraki</option>
-          <option value="Small Business">Small Business</option>
-        </select>
+  <main id="app" class="max-w-7xl mx-auto p-4 grid lg:grid-cols-[420px,1fr] gap-4" v-cloak>
+    <!-- Panneau filtres -->
+    <aside class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-5">
+      <h2 class="text-sm font-semibold text-sky-300">Port configuration</h2>
+
+      <!-- DOWNLINKS -->
+      <section class="space-y-3">
+        <h3 class="text-sm font-semibold text-slate-200">Downlink ports</h3>
+
+        <!-- Lan Throughput (downlink) -->
+        <div>
+          <div class="text-xs text-slate-400 mb-1">LAN Throughput</div>
+          <div class="flex flex-col gap-1 text-sm">
+            <label class="inline-flex items-center gap-2"
+                   v-for="t in throughputOptions" :key="'lan_'+t.value">
+              <input type="checkbox" class="rounded"
+                     :checked="filters.lan.has(t.value)"
+                     :disabled="!availability.lan.has(t.value)"
+                     @change="toggleSet(filters.lan, t.value)" />
+              <span :class="{'text-slate-500': !availability.lan.has(t.value)}">{{ t.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Port type -->
+        <div>
+          <div class="text-xs text-slate-400 mb-1">Port type</div>
+          <div class="flex flex-col gap-1 text-sm">
+            <label class="inline-flex items-center gap-2" v-for="t in portTypeOptions" :key="'ptype_'+t.value'">
+              <input type="checkbox" class="rounded"
+                     :checked="filters.portTypes.has(t.value)"
+                     :disabled="!availability.portTypes.has(t.value)"
+                     @change="toggleSet(filters.portTypes, t.value)" />
+              <span :class="{'text-slate-500': !availability.portTypes.has(t.value)}">{{ t.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Number of LAN ports (buckets) -->
+        <div>
+          <div class="text-xs text-slate-400 mb-1">Number of LAN ports</div>
+          <div class="flex flex-wrap gap-2">
+            <button v-for="b in portBuckets" :key="b.key"
+                    @click="selectExclusive('lanPorts', b.key)"
+                    class="px-3 py-1.5 rounded-lg border text-sm"
+                    :class="[
+                      filters.lanPorts===b.key ? 'bg-sky-600 border-sky-500' : 'bg-slate-900 border-slate-700',
+                      !availability.lanPorts.has(b.key) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                    ]"
+                    :disabled="!availability.lanPorts.has(b.key)">
+              {{ b.label }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <hr class="border-slate-800" />
+
+      <!-- UPLINKS -->
+      <section class="space-y-3">
+        <h3 class="text-sm font-semibold text-slate-200">Uplink ports</h3>
+
+        <!-- Uplink Throughput -->
+        <div>
+          <div class="text-xs text-slate-400 mb-1">Uplink Throughput</div>
+          <div class="flex flex-col gap-1 text-sm">
+            <label class="inline-flex items-center gap-2"
+                   v-for="t in uplinkThroughputOptions" :key="'upl_'+t.value">
+              <input type="checkbox" class="rounded"
+                     :checked="filters.uplinks.has(t.value)"
+                     :disabled="!availability.uplinks.has(t.value)"
+                     @change="toggleSet(filters.uplinks, t.value)" />
+              <span :class="{'text-slate-500': !availability.uplinks.has(t.value)}">{{ t.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Include Modular uplinks -->
+        <div class="flex items-center justify-between">
+          <span class="text-sm">Include Modular uplinks</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">No, fixed only</span>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer"
+                     :checked="filters.modular"
+                     :disabled="!availability.modular"
+                     @change="filters.modular = !filters.modular" />
+              <div class="w-10 h-6 bg-slate-700 peer-checked:bg-sky-600 rounded-full relative transition">
+                <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition peer-checked:translate-x-4"></div>
+              </div>
+            </label>
+            <span class="text-xs text-slate-400">Yes</span>
+          </div>
+        </div>
+
+        <!-- Number of uplinks -->
+        <div>
+          <div class="text-xs text-slate-400 mb-1">Number of Uplinks</div>
+          <div class="flex flex-wrap gap-2">
+            <button v-for="n in [0,2,4,6,8,12]" :key="'nu_'+n"
+                    @click="selectExclusive('numUplinks', n)"
+                    class="px-3 py-1.5 rounded-lg border text-sm"
+                    :class="[
+                      filters.numUplinks===n ? 'bg-sky-600 border-sky-500' : 'bg-slate-900 border-slate-700',
+                      !availability.numUplinks.has(n) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                    ]"
+                    :disabled="!availability.numUplinks.has(n)">
+              {{ n }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div class="pt-2 flex items-center justify-between text-xs text-slate-400">
+        <span><strong class="text-slate-100 text-sm">{{ results.length }}</strong> switches correspond to your request</span>
+        <button @click="reset" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-sm">Reset</button>
       </div>
-      <div>
-        <label class="text-xs text-slate-400">Nombre de ports (min): <span x-text="filters.portsMin + '+'"></span></label>
-        <input type="range" min="0" max="96" step="1" x-model.number="filters.portsMin" @input="apply()" class="w-full mt-1">
-      </div>
-      <div class="flex items-center gap-2">
-        <input id="poe" type="checkbox" x-model="filters.poeOnly" @change="apply()" class="rounded">
-        <label for="poe" class="text-sm text-slate-300">Uniquement PoE</label>
-      </div>
-      <div>
-        <label class="text-xs text-slate-400">Uplinks</label>
-        <select x-model="filters.uplink" @change="apply()" class="w-full mt-1 rounded-lg bg-slate-900 border border-slate-700 px-2 py-2 text-sm">
-          <option value="">Tous</option>
-          <option value="SFP">SFP (1G)</option>
-          <option value="SFP+">SFP+ (10G)</option>
-          <option value="QSFP28">QSFP28 (40/100G)</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-xs text-slate-400">OS</label>
-        <select x-model="filters.os" @change="apply()" class="w-full mt-1 rounded-lg bg-slate-900 border border-slate-700 px-2 py-2 text-sm">
-          <option value="">Tous</option>
-          <option>IOS-XE</option>
-          <option>Meraki OS</option>
-          <option>Business OS</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-xs text-slate-400">Modèle de licence</label>
-        <select x-model="filters.licenseModel" @change="apply()" class="w-full mt-1 rounded-lg bg-slate-900 border border-slate-700 px-2 py-2 text-sm">
-          <option value="">Tous</option>
-          <option value="meraki_per_device">Meraki — Per-Device</option>
-          <option value="meraki_co_term">Meraki — Co-Term</option>
-          <option value="catalyst_dna">Catalyst — DNA</option>
-          <option value="catalyst_networking">Catalyst — Network E/A</option>
-          <option value="smb_included">Small Business — Inclus</option>
-        </select>
-      </div>
-      <div class="flex gap-2">
-        <button @click="reset()" class="px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900">Réinitialiser</button>
-        <button @click="exportJson()" class="px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900">Exporter JSON</button>
-      </div>
-      <div class="flex items-center gap-2 text-xs text-slate-400">
-        <span x-text="filtered.length"></span> résultat(s)
-      </div>
-      <p class="text-[11px] text-slate-500">Source: <code x-text="DATA_SOURCE"></code></p>
     </aside>
 
+    <!-- Résultats -->
     <section class="bg-slate-950 border border-slate-800 rounded-xl p-3">
-      <h2 class="text-sm font-semibold text-sky-300 mb-2">Résultats</h2>
+      <h2 class="text-sm font-semibold text-sky-300 mb-3">Results</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <template x-for="p in filtered" :key="p.sku">
-          <article class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
-            <h3 class="text-sm font-semibold" x-text="p.name"></h3>
-            <div class="flex flex-wrap gap-2 text-xs">
-              <span class="px-2 py-0.5 rounded-full border border-slate-700" x-text="p.family + (p.series ? ' · ' + p.series : '')"></span>
-              <span class="px-2 py-0.5 rounded-full border border-slate-700" x-text="p.ports_access + ' ports'"></span>
-              <span class="px-2 py-0.5 rounded-full border border-slate-700" x-text="p.poe && p.poe.supported ? ('PoE ' + (p.poe.standard ? p.poe.standard.toUpperCase() : '') + (p.poe.budget_w ? (' · ' + p.poe.budget_w + 'W') : '')) : 'No PoE'"></span>
-              <span class="px-2 py-0.5 rounded-full border border-slate-700" x-text="'Uplinks: ' + ((p.uplinks||[]).map(u=> u.count + '×' + u.type).join(', ') || '—')"></span>
-              <span class="px-2 py-0.5 rounded-full border border-slate-700" x-text="p.os"></span>
-              <span class="px-2 py-0.5 rounded-full border border-slate-700" x-text="'Lic: ' + (p.licenses?.model || (p.family==='Meraki'?'meraki_per_device':(p.family==='Small Business'?'smb_included':'catalyst_dna')))"></span>
-            </div>
-            <p class="text-[11px] text-slate-500">SKU: <span x-text="p.sku"></span></p>
-          </article>
-        </template>
-        <div x-show="!filtered.length" class="text-sm text-slate-400 p-3">Aucun résultat. Ajustez vos filtres.</div>
+        <article v-for="p in results" :key="p.sku" class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+          <h3 class="text-sm font-semibold">{{ p.name }}</h3>
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="px-2 py-0.5 rounded-full border border-slate-700">{{ p.family }} · {{ p.series }}</span>
+            <span class="px-2 py-0.5 rounded-full border border-slate-700">{{ p.downlink.throughput }} · {{ p.downlink.type }}</span>
+            <span class="px-2 py-0.5 rounded-full border border-slate-700">{{ p.ports_access }} ports</span>
+            <span class="px-2 py-0.5 rounded-full border border-slate-700">Uplinks: {{ p.uplink.types.join('/') }} · {{ p.uplink.count }}</span>
+            <span class="px-2 py-0.5 rounded-full border border-slate-700">{{ p.os }}</span>
+          </div>
+          <p class="text-[11px] text-slate-500">SKU: {{ p.sku }}</p>
+        </article>
       </div>
     </section>
   </main>
 
+  <style>[v-cloak]{display:none}</style>
   <script>
-  function app(){
-    return {
-      DATA_SOURCE: 'data/products.json',
-      all: [], filtered: [],
-      filters: { family:'', portsMin:0, poeOnly:false, uplink:'', os:'', licenseModel:'' },
-      async init(){
-        try{
-          const res = await fetch(this.DATA_SOURCE, { cache: 'no-store' });
-          this.all = await res.json();
-        }catch(e){
-          this.all = [];
+  const { createApp, reactive, computed } = Vue;
+
+  // --- Démo de données (remplace par ton export) ---
+  const PRODUCTS = [
+    // Catalyst
+    { sku:'C9200-24P-E', name:'Catalyst 9200 24P PoE+', family:'Catalyst', series:'C9200',
+      ports_access:24,
+      downlink:{ throughput:'GE', type:'Copper' },
+      uplink:{ types:['SFP'], count:4, modular:false, throughput:['1G'] },
+      os:'IOS-XE' },
+    { sku:'C9300-24U-E', name:'Catalyst 9300 24U UPOE', family:'Catalyst', series:'C9300',
+      ports_access:24,
+      downlink:{ throughput:'mGig', type:'Copper' },
+      uplink:{ types:['SFP+'], count:4, modular:true, throughput:['10G'] },
+      os:'IOS-XE' },
+    { sku:'C9300-48T-E', name:'Catalyst 9300 48T Data', family:'Catalyst', series:'C9300',
+      ports_access:48,
+      downlink:{ throughput:'GE', type:'Copper' },
+      uplink:{ types:['SFP+'], count:4, modular:false, throughput:['10G'] },
+      os:'IOS-XE' },
+    // Meraki
+    { sku:'MS225-24P-HW', name:'Meraki MS225-24P', family:'Meraki', series:'MS225',
+      ports_access:24,
+      downlink:{ throughput:'GE', type:'Copper' },
+      uplink:{ types:['SFP+'], count:4, modular:false, throughput:['10G'] },
+      os:'Meraki OS' },
+    { sku:'MS390-24UX-HW', name:'Meraki MS390-24UX', family:'Meraki', series:'MS390',
+      ports_access:24,
+      downlink:{ throughput:'mGig', type:'Copper' },
+      uplink:{ types:['SFP+'], count:4, modular:true, throughput:['10G'] },
+      os:'Meraki OS' },
+    { sku:'MS120-8LP-HW', name:'Meraki MS120-8LP', family:'Meraki', series:'MS120',
+      ports_access:8,
+      downlink:{ throughput:'GE', type:'Copper' },
+      uplink:{ types:['SFP'], count:2, modular:false, throughput:['1G'] },
+      os:'Meraki OS' },
+    // Small Business
+    { sku:'CBS350-24P-4X', name:'Business 350 24P-4X', family:'Small Business', series:'CBS350',
+      ports_access:24,
+      downlink:{ throughput:'GE', type:'Copper' },
+      uplink:{ types:['SFP+'], count:4, modular:false, throughput:['10G'] },
+      os:'Business OS' },
+    { sku:'CBS220-8T-2G', name:'Business 220 8T-2G', family:'Small Business', series:'CBS220',
+      ports_access:8,
+      downlink:{ throughput:'GE', type:'Copper' },
+      uplink:{ types:['SFP'], count:2, modular:false, throughput:['1G'] },
+      os:'Business OS' }
+  ];
+
+  // Options affichées (tu peux en ajouter)
+  const throughputOptions = [
+    { value:'FE', label:'Fast Ethernet (FE)' },
+    { value:'GE', label:'Gigabit Ethernet (GE)' },
+    { value:'mGig', label:'Multi Gigabit Ethernet (mGig)' },
+    { value:'10G', label:'10 Gigabits' },   // côté downlink, certains châssis/linecards
+  ];
+  const portTypeOptions = [
+    { value:'Copper', label:'Copper' },
+    { value:'Fiber',  label:'Fiber'  },
+  ];
+  const uplinkThroughputOptions = [
+    { value:'GE',  label:'Gigabit Ethernet (GE)' },
+    { value:'mGig',label:'Multi Gigabit Ethernet (mGig)' },
+    { value:'10G', label:'10 Gigabits' },
+    { value:'25G', label:'25 Gigabits' },
+    { value:'40G', label:'40 Gigabits' },
+    { value:'100G',label:'100 Gigabits' }
+  ];
+  const portBuckets = [
+    { key:'LE5',    label:'≤5',    matches:n=>n<=5 },
+    { key:'8_12',   label:'8–12',  matches:n=>n>=8  && n<=12 },
+    { key:'16_24',  label:'16–24', matches:n=>n>=16 && n<=24 },
+    { key:'32_48',  label:'32–48', matches:n=>n>=32 && n<=48 }
+  ];
+
+  createApp({
+    setup(){
+      // Filtres (ensembles pour cocher/décocher) — no zero results: on désactive à l’affichage
+      const filters = reactive({
+        lan: new Set(['GE','mGig']),              // ex. valeurs cochées par défaut
+        portTypes: new Set(['Copper']),
+        lanPorts: '8_12',
+        uplinks: new Set(['GE','10G']),
+        modular: true,
+        numUplinks: 4
+      });
+
+      // Résultats filtrés
+      const results = computed(() => PRODUCTS.filter(p => {
+        // Downlink throughput
+        if(filters.lan.size && !filters.lan.has(p.downlink.throughput)) return false;
+        // Port type
+        if(filters.portTypes.size && !filters.portTypes.has(p.downlink.type)) return false;
+        // Ports bucket
+        const bucket = portBuckets.find(b => b.key === filters.lanPorts);
+        if(bucket && !bucket.matches(p.ports_access)) return false;
+        // Uplink throughput (produit contient tableau p.uplink.throughput)
+        if(filters.uplinks.size){
+          const ok = p.uplink.throughput.some(t => filters.uplinks.has(t));
+          if(!ok) return false;
         }
-        this.apply();
-      },
-      match(p){
-        if(this.filters.family && p.family !== this.filters.family) return false;
-        if((p.ports_access||0) < (this.filters.portsMin||0)) return false;
-        if(this.filters.poeOnly && !(p.poe && p.poe.supported)) return false;
-        if(this.filters.uplink){
-          const types = (p.uplinks||[]).map(u => u.type);
-          if(!types.includes(this.filters.uplink)) return false;
-        }
-        if(this.filters.os && p.os !== this.filters.os) return false;
-        if(this.filters.licenseModel){
-          const model = p.licenses && p.licenses.model;
-          if(model !== this.filters.licenseModel) return false;
-        }
+        // Modular
+        if(filters.modular && !p.uplink.modular) return false;
+        // Num uplinks exact
+        if(typeof filters.numUplinks==='number' && p.uplink.count !== filters.numUplinks) return false;
         return true;
-      },
-      apply(){ this.filtered = this.all.filter(p => this.match(p)); },
-      reset(){ this.filters = { family:'', portsMin:0, poeOnly:false, uplink:'', os:'', licenseModel:'' }; this.apply(); },
-      exportJson(){
-        const blob = new Blob([JSON.stringify(this.filtered, null, 2)], {type:'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'selection.json'; a.click();
-        setTimeout(()=> URL.revokeObjectURL(url), 500);
+      }));
+
+      // Disponibilités dynamiques (ce qui reste possible compte tenu des filtres actifs)
+      const availability = computed(() => {
+        // Helper: “projection” sur une dimension, en ignorant la dimension en cours (no-zero lookahead)
+        // Ici simple: on calcule depuis la liste filtrée actuelle (ça suffit pour désactiver les impossibles).
+        const r = results.value;
+        const lan = new Set(r.map(p => p.downlink.throughput));
+        const portTypes = new Set(r.map(p => p.downlink.type));
+        const lanPorts = new Set(portBuckets.filter(b => r.some(p => b.matches(p.ports_access))).map(b => b.key));
+        const uplinks = new Set(r.flatMap(p => p.uplink.throughput));
+        const numUplinks = new Set(r.map(p => p.uplink.count));
+        const modular = r.some(p => p.uplink.modular); // bool global
+        return { lan, portTypes, lanPorts, uplinks, numUplinks, modular };
+      });
+
+      // Utilitaires
+      function toggleSet(set, value){
+        if(set.has(value)) set.delete(value); else set.add(value);
       }
+      function selectExclusive(key, value){
+        // Si l’option est indisponible, on ne fait rien
+        if(key==='lanPorts' && !availability.value.lanPorts.has(value)) return;
+        if(key==='numUplinks' && !availability.value.numUplinks.has(value)) return;
+        filters[key] = value;
+      }
+      function reset(){
+        filters.lan        = new Set(['GE','mGig']);
+        filters.portTypes  = new Set(['Copper']);
+        filters.lanPorts   = '8_12';
+        filters.uplinks    = new Set(['GE','10G']);
+        filters.modular    = true;
+        filters.numUplinks = 4;
+      }
+
+      return {
+        filters, results, availability,
+        throughputOptions, portTypeOptions, uplinkThroughputOptions, portBuckets,
+        toggleSet, selectExclusive, reset
+      };
     }
-  }
+  }).mount('#app');
   </script>
 </body>
 </html>
