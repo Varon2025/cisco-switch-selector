@@ -4,7 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cisco Unified Product Selector — Démo</title>
+  <!-- UI: Tailwind (CDN, OK pour Pages) -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 (CDN) -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <style>[v-cloak]{display:none}</style>
 </head>
@@ -15,7 +17,7 @@
       <p class="text-xs text-slate-400">No‑zero results · GitHub Pages ready</p>
     </div>
   </header>
-<div class="text-xs text-lime-400 mb-2">Vue OK ✔</div>
+
   <main id="app" class="max-w-7xl mx-auto p-4 grid lg:grid-cols-[420px,1fr] gap-4" v-cloak>
     <!-- Filtres -->
     <aside class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-5">
@@ -25,7 +27,7 @@
       <section class="space-y-3">
         <h3 class="text-sm font-semibold text-slate-200">Downlink ports</h3>
 
-        <!-- Lan Throughput -->
+        <!-- LAN Throughput -->
         <div>
           <div class="text-xs text-slate-400 mb-1">LAN Throughput</div>
           <div class="flex flex-col gap-1 text-sm">
@@ -33,20 +35,32 @@
               <input type="checkbox" class="rounded"
                      :checked="filters.lan.has(t.value)"
                      :disabled="!availability.lan.has(t.value)"
-                     @change="toggleSet(filters.lan, t.value)" />
+                     @change="tryToggleSet('lan', t.value)" />
               <span :class="{'text-slate-500': !availability.lan.has(t.value)}">{{ t.label }}</span>
             </label>
           </div>
         </div>
 
-               <!-- Port type (⚠️ ligne corrigée :key) -->
+        <!-- Port type -->
+        <div>
+          <div class="text-xs text-slate-400 mb-1">Port type</div>
+          <div class="flex flex-col gap-1 text-sm">
+            <label class="inline-flex items-center gap-2" v-for="t in portTypeOptions" :key="'ptype_'+t.value">
+              <input type="checkbox" class="rounded"
+                     :checked="filters.portTypes.has(t.value)"
+                     :disabled="!availability.portTypes.has(t.value)"
+                     @change="tryToggleSet('portTypes', t.value)" />
+              <span :class="{'text-slate-500': !availability.portTypes.has(t.value)}">{{ t.label }}</span>
+            </label>
+          </div>
+        </div>
 
         <!-- Buckets de ports -->
         <div>
           <div class="text-xs text-slate-400 mb-1">Number of LAN ports</div>
           <div class="flex flex-wrap gap-2">
             <button v-for="b in portBuckets" :key="b.key"
-                    @click="selectExclusive('lanPorts', b.key)"
+                    @click="trySelect('lanPorts', b.key)"
                     class="px-3 py-1.5 rounded-lg border text-sm"
                     :class="[
                       filters.lanPorts===b.key ? 'bg-sky-600 border-sky-500' : 'bg-slate-900 border-slate-700',
@@ -65,6 +79,7 @@
       <section class="space-y-3">
         <h3 class="text-sm font-semibold text-slate-200">Uplink ports</h3>
 
+        <!-- Uplink Throughput -->
         <div>
           <div class="text-xs text-slate-400 mb-1">Uplink Throughput</div>
           <div class="flex flex-col gap-1 text-sm">
@@ -72,27 +87,32 @@
               <input type="checkbox" class="rounded"
                      :checked="filters.uplinks.has(t.value)"
                      :disabled="!availability.uplinks.has(t.value)"
-                     @change="toggleSet(filters.uplinks, t.value)" />
+                     @change="tryToggleSet('uplinks', t.value)" />
               <span :class="{'text-slate-500': !availability.uplinks.has(t.value)}">{{ t.label }}</span>
             </label>
           </div>
         </div>
 
+        <!-- Modular uplinks -->
         <div class="flex items-center justify-between">
           <span class="text-sm">Include Modular uplinks</span>
           <label class="inline-flex items-center cursor-pointer">
-            <input type="checkbox" class="sr-only peer" :checked="filters.modular" :disabled="!availability.modular" @change="filters.modular = !filters.modular" />
+            <input type="checkbox" class="sr-only peer"
+                   :checked="filters.modular===true"
+                   :disabled="!availability.modularTrue"
+                   @change="tryToggleBoolean('modular')" />
             <div class="w-10 h-6 bg-slate-700 peer-checked:bg-sky-600 rounded-full relative transition">
               <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition peer-checked:translate-x-4"></div>
             </div>
           </label>
         </div>
 
+        <!-- Number of uplinks -->
         <div>
           <div class="text-xs text-slate-400 mb-1">Number of Uplinks</div>
           <div class="flex flex-wrap gap-2">
             <button v-for="n in [0,2,4,6,8,12]" :key="'nu_'+n"
-                    @click="selectExclusive('numUplinks', n)"
+                    @click="trySelect('numUplinks', n)"
                     class="px-3 py-1.5 rounded-lg border text-sm"
                     :class="[
                       filters.numUplinks===n ? 'bg-sky-600 border-sky-500' : 'bg-slate-900 border-slate-700',
@@ -133,7 +153,9 @@
   <script>
   const { createApp, reactive, computed } = Vue;
 
+  // --- Données démo (remplace par ton export JSON) ---
   const PRODUCTS = [
+    // Catalyst
     { sku:'C9200-24P-E', name:'Catalyst 9200 24P PoE+', family:'Catalyst', series:'C9200',
       ports_access:24, downlink:{ throughput:'GE', type:'Copper' },
       uplink:{ types:['SFP'], count:4, modular:false, throughput:['1G'] }, os:'IOS-XE' },
@@ -143,6 +165,7 @@
     { sku:'C9300-48T-E', name:'Catalyst 9300 48T Data', family:'Catalyst', series:'C9300',
       ports_access:48, downlink:{ throughput:'GE', type:'Copper' },
       uplink:{ types:['SFP+'], count:4, modular:false, throughput:['10G'] }, os:'IOS-XE' },
+    // Meraki
     { sku:'MS225-24P-HW', name:'Meraki MS225-24P', family:'Meraki', series:'MS225',
       ports_access:24, downlink:{ throughput:'GE', type:'Copper' },
       uplink:{ types:['SFP+'], count:4, modular:false, throughput:['10G'] }, os:'Meraki OS' },
@@ -152,6 +175,7 @@
     { sku:'MS120-8LP-HW', name:'Meraki MS120-8LP', family:'Meraki', series:'MS120',
       ports_access:8, downlink:{ throughput:'GE', type:'Copper' },
       uplink:{ types:['SFP'], count:2, modular:false, throughput:['1G'] }, os:'Meraki OS' },
+    // Small Business
     { sku:'CBS350-24P-4X', name:'Business 350 24P-4X', family:'Small Business', series:'CBS350',
       ports_access:24, downlink:{ throughput:'GE', type:'Copper' },
       uplink:{ types:['SFP+'], count:4, modular:false, throughput:['10G'] }, os:'Business OS' },
@@ -160,11 +184,12 @@
       uplink:{ types:['SFP'], count:2, modular:false, throughput:['1G'] }, os:'Business OS' }
   ];
 
+  // Options affichées
   const throughputOptions = [
     { value:'FE', label:'Fast Ethernet (FE)' },
     { value:'GE', label:'Gigabit Ethernet (GE)' },
     { value:'mGig', label:'Multi Gigabit Ethernet (mGig)' },
-    { value:'10G', label:'10 Gigabits' }
+    { value:'10G', label:'10 Gigabits' } // cas châssis/linecards
   ];
   const portTypeOptions = [
     { value:'Copper', label:'Copper' },
@@ -185,59 +210,119 @@
     { key:'32_48',  label:'32–48', matches:n=>n>=32 && n<=48 }
   ];
 
+  // --- App ---
   createApp({
     setup(){
+      // Par défaut: AUCUN filtre actif
       const filters = reactive({
-        lan: new Set(['GE','mGig']),
-        portTypes: new Set(['Copper']),
-        lanPorts: '8_12',
-        uplinks: new Set(['GE','10G']),
-        modular: true,
-        numUplinks: 4
+        lan: new Set(),          // FE/GE/mGig/10G (downlink) - vide = pas de filtre
+        portTypes: new Set(),    // Copper/Fiber
+        lanPorts: null,          // bucket clé ou null
+        uplinks: new Set(),      // GE/mGig/10G/25G/...
+        modular: null,           // null = indifférent, true = modulaires uniquement
+        numUplinks: null         // null = indifférent, sinon nombre exact
       });
 
-      const results = computed(() => PRODUCTS.filter(p => {
-        if(filters.lan.size && !filters.lan.has(p.downlink.throughput)) return false;
-        if(filters.portTypes.size && !filters.portTypes.has(p.downlink.type)) return false;
-        const bucket = portBuckets.find(b => b.key === filters.lanPorts);
-        if(bucket && !bucket.matches(p.ports_access)) return false;
-        if(filters.uplinks.size){
-          const ok = p.uplink.throughput.some(t => filters.uplinks.has(t));
-          if(!ok) return false;
-        }
-        if(filters.modular && !p.uplink.modular) return false;
-        if(typeof filters.numUplinks==='number' && p.uplink.count !== filters.numUplinks) return false;
-        return true;
-      }));
+      // Filtrage générique en fonction d'un "state" passé (utile pour simuler)
+      function computeResults(state){
+        return PRODUCTS.filter(p => {
+          // Downlink throughput
+          if(state.lan.size && !state.lan.has(p.downlink.throughput)) return false;
+          // Port type
+          if(state.portTypes.size && !state.portTypes.has(p.downlink.type)) return false;
+          // Ports bucket
+          if(state.lanPorts){
+            const bucket = portBuckets.find(b => b.key === state.lanPorts);
+            if(bucket && !bucket.matches(p.ports_access)) return false;
+          }
+          // Uplink throughput (produit: p.uplink.throughput = ['1G','10G',...])
+          if(state.uplinks.size){
+            const ok = p.uplink.throughput.some(t => state.uplinks.has(t));
+            if(!ok) return false;
+          }
+          // Modular
+          if(state.modular === true && !p.uplink.modular) return false;
+          // Num uplinks exact
+          if(state.numUplinks!==null && p.uplink.count !== state.numUplinks) return false;
+          return true;
+        });
+      }
 
+      // Résultats courants (avec les filtres actifs)
+      const results = computed(() => computeResults(filters));
+
+      // Disponibilités (ce qui reste possible compte tenu des filtres actifs)
       const availability = computed(() => {
-        const r = results.value;
-        const lan = new Set(r.map(p => p.downlink.throughput));
-        const portTypes = new Set(r.map(p => p.downlink.type));
-        const lanPorts = new Set(portBuckets.filter(b => r.some(p => b.matches(p.ports_access))).map(b => b.key));
-        const uplinks = new Set(r.flatMap(p => p.uplink.throughput));
-        const numUplinks = new Set(r.map(p => p.uplink.count));
-        const modular = r.some(p => p.uplink.modular);
-        return { lan, portTypes, lanPorts, uplinks, numUplinks, modular };
+        // On se base sur les résultats *courants* (qui ne doivent jamais être 0
+        // car on bloque les actions qui mèneraient à 0). Si jamais 0 (premier chargement
+        // ou bug), on retombe sur tout le catalogue pour éviter de bloquer l'UI.
+        const base = results.value.length ? results.value : PRODUCTS;
+
+        const lan = new Set(base.map(p => p.downlink.throughput));
+        const portTypes = new Set(base.map(p => p.downlink.type));
+        const lanPorts = new Set(
+          portBuckets.filter(b => base.some(p => b.matches(p.ports_access))).map(b => b.key)
+        );
+        const uplinks = new Set(base.flatMap(p => p.uplink.throughput));
+        const numUplinks = new Set(base.map(p => p.uplink.count));
+        const modularTrue = base.some(p => p.uplink.modular);
+
+        return { lan, portTypes, lanPorts, uplinks, numUplinks, modularTrue };
       });
 
-      function toggleSet(set, value){ set.has(value) ? set.delete(value) : set.add(value); }
-      function selectExclusive(key, value){
-        if(key==='lanPorts' && !availability.value.lanPorts.has(value)) return;
-        if(key==='numUplinks' && !availability.value.numUplinks.has(value)) return;
-        filters[key] = value;
+      // --- Handlers avec "no-zero" pre-check ---
+      function cloneState(){
+        return {
+          lan: new Set(filters.lan),
+          portTypes: new Set(filters.portTypes),
+          lanPorts: filters.lanPorts,
+          uplinks: new Set(filters.uplinks),
+          modular: filters.modular,
+          numUplinks: filters.numUplinks
+        };
       }
+
+      function tryToggleSet(key, value){
+        const next = cloneState();
+        const set = next[key];
+        if(set.has(value)) set.delete(value); else set.add(value);
+
+        const would = computeResults(next);
+        if(would.length === 0) return; // on bloque: mènerait à 0
+        // commit
+        filters[key].has(value) ? filters[key].delete(value) : filters[key].add(value);
+      }
+
+      function trySelect(key, value){
+        const next = cloneState();
+        next[key] = (next[key] === value ? null : value); // clic = select/deselect bucket
+        const would = computeResults(next);
+        if(would.length === 0) return; // bloque
+        filters[key] = (filters[key] === value ? null : value);
+      }
+
+      function tryToggleBoolean(key){
+        const next = cloneState();
+        next[key] = next[key] === true ? null : true;  // null <-> true (indifférent / requis)
+        const would = computeResults(next);
+        if(would.length === 0) return; // bloque
+        filters[key] = (filters[key] === true ? null : true);
+      }
+
       function reset(){
-        filters.lan        = new Set(['GE','mGig']);
-        filters.portTypes  = new Set(['Copper']);
-        filters.lanPorts   = '8_12';
-        filters.uplinks    = new Set(['GE','10G']);
-        filters.modular    = true;
-        filters.numUplinks = 4;
+        filters.lan.clear();
+        filters.portTypes.clear();
+        filters.uplinks.clear();
+        filters.lanPorts = null;
+        filters.modular = null;
+        filters.numUplinks = null;
       }
-      return { filters, results, availability,
-               throughputOptions, portTypeOptions, uplinkThroughputOptions, portBuckets,
-               toggleSet, selectExclusive, reset };
+
+      return {
+        filters, results, availability,
+        throughputOptions, portTypeOptions, uplinkThroughputOptions, portBuckets,
+        tryToggleSet, trySelect, tryToggleBoolean, reset
+      };
     }
   }).mount('#app');
   </script>
