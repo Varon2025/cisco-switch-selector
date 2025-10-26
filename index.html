@@ -1,293 +1,549 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cisco Unified Product Selector — GitHub Pages</title>
-  <!-- UI: Tailwind (CDN) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Vue 3 (CDN) -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <style>[v-cloak]{display:none}</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cisco Product Selector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100">
-  <header class="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur px-4 py-3">
-    <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <h1 class="text-base font-semibold">Cisco Unified Product Selector</h1>
-      <p class="text-xs text-slate-400">GitHub Pages · fetch('data/products.json')</p>
-    </div>
-  </header>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const API_URL = '/api';
 
-  <main id="app" class="max-w-7xl mx-auto p-4 grid lg:grid-cols-[420px,1fr] gap-4" v-cloak>
-    <!-- Filtres -->
-    <aside class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-5">
-      <h2 class="text-sm font-semibold text-sky-300">Port configuration</h2>
+        function SwitchSelector() {
+            const [products, setProducts] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [filters, setFilters] = useState({
+                portfolio: [], series: [], ports: [], portMedia: [], downlinkSpeed: [],
+                uplinkSpeed: [], poeType: [], poeBudget: null, layer: [], stacking: []
+            });
+            const [searchTerm, setSearchTerm] = useState('');
+            const [selectedProducts, setSelectedProducts] = useState([]);
+            const [cart, setCart] = useState([]);
+            const [view, setView] = useState('selector');
 
-      <!-- DOWNLINK -->
-      <section class="space-y-3">
-        <h3 class="text-sm font-semibold text-slate-200">Downlink ports</h3>
+            useEffect(() => {
+                fetchProducts();
+            }, []);
 
-        <!-- LAN Throughput -->
-        <div>
-          <div class="text-xs text-slate-400 mb-1">LAN Throughput</div>
-          <div class="flex flex-col gap-1 text-sm">
-            <label class="inline-flex items-center gap-2" v-for="t in throughputOptions" :key="'lan_'+t.value">
-              <input type="checkbox" class="rounded"
-                     :checked="filters.lan.has(t.value)"
-                     :disabled="!availability.lan.has(t.value)"
-                     @change="tryToggleSet('lan', t.value)" />
-              <span :class="{'text-slate-500': !availability.lan.has(t.value)}">{{ t.label }}</span>
-            </label>
-          </div>
-        </div>
+            const fetchProducts = async () => {
+                try {
+                    setLoading(true);
+                    const response = await axios.get(`${API_URL}/products`);
+                    setProducts(response.data.data);
+                    setError(null);
+                } catch (err) {
+                    setError('Erreur de connexion à l\'API');
+                } finally {
+                    setLoading(false);
+                }
+            };
 
-        <!-- Port type -->
-        <div>
-          <div class="text-xs text-slate-400 mb-1">Port type</div>
-          <div class="flex flex-col gap-1 text-sm">
-            <label class="inline-flex items-center gap-2" v-for="t in portTypeOptions" :key="'ptype_'+t.value">
-              <input type="checkbox" class="rounded"
-                     :checked="filters.portTypes.has(t.value)"
-                     :disabled="!availability.portTypes.has(t.value)"
-                     @change="tryToggleSet('portTypes', t.value)" />
-              <span :class="{'text-slate-500': !availability.portTypes.has(t.value)}">{{ t.label }}</span>
-            </label>
-          </div>
-        </div>
+            const filteredProducts = useMemo(() => {
+                return products.filter(product => {
+                    if (searchTerm && !product.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
+                        !product.id.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+                    if (filters.portfolio.length > 0 && !filters.portfolio.includes(product.portfolio)) return false;
+                    if (filters.series.length > 0 && !filters.series.includes(product.series)) return false;
+                    if (filters.ports.length > 0 && !filters.ports.includes(product.ports)) return false;
+                    if (filters.portMedia.length > 0 && !filters.portMedia.includes(product.port_media)) return false;
+                    if (filters.downlinkSpeed.length > 0 && !filters.downlinkSpeed.includes(product.downlink_speed)) return false;
+                    if (filters.uplinkSpeed.length > 0 && !filters.uplinkSpeed.includes(product.uplink_speed)) return false;
+                    if (filters.poeType.length > 0 && !filters.poeType.includes(product.poe_type)) return false;
+                    if (filters.poeBudget && product.poe_budget < filters.poeBudget) return false;
+                    if (filters.layer.length > 0 && !filters.layer.includes(product.layer)) return false;
+                    if (filters.stacking.length > 0 && !filters.stacking.includes(product.stacking)) return false;
+                    return true;
+                });
+            }, [products, filters, searchTerm]);
 
-        <!-- Buckets de ports -->
-        <div>
-          <div class="text-xs text-slate-400 mb-1">Number of LAN ports</div>
-          <div class="flex flex-wrap gap-2">
-            <button v-for="b in portBuckets" :key="b.key"
-                    @click="trySelect('lanPorts', b.key)"
-                    class="px-3 py-1.5 rounded-lg border text-sm"
-                    :class="[
-                      filters.lanPorts===b.key ? 'bg-sky-600 border-sky-500' : 'bg-slate-900 border-slate-700',
-                      !availability.lanPorts.has(b.key) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                    ]"
-                    :disabled="!availability.lanPorts.has(b.key)">
-              {{ b.label }}
+            const availableOptions = useMemo(() => {
+                const portfolios = [...new Set(products.map(p => p.portfolio))];
+                const allSeries = [...new Set(products.map(p => p.series))];
+                const ports = [...new Set(filteredProducts.map(p => p.ports))].sort((a, b) => a - b);
+                const portMedias = [...new Set(filteredProducts.map(p => p.port_media))];
+                const downlinkSpeeds = [...new Set(filteredProducts.map(p => p.downlink_speed))];
+                const uplinkSpeeds = [...new Set(filteredProducts.map(p => p.uplink_speed))];
+                const poeTypes = [...new Set(filteredProducts.map(p => p.poe_type))];
+                const layers = [...new Set(filteredProducts.map(p => p.layer))];
+                const stackings = [...new Set(filteredProducts.map(p => p.stacking))];
+                return { portfolios, allSeries, ports, portMedias, downlinkSpeeds, uplinkSpeeds, poeTypes, layers, stackings };
+            }, [products, filteredProducts]);
+
+            const toggleFilter = (category, value) => {
+                setFilters(prev => {
+                    if (Array.isArray(prev[category])) {
+                        const current = prev[category];
+                        return { ...prev, [category]: current.includes(value) ? current.filter(v => v !== value) : [...current, value] };
+                    }
+                    return { ...prev, [category]: prev[category] === value ? null : value };
+                });
+            };
+
+            const toggleProductSelection = (productId) => {
+                setSelectedProducts(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
+            };
+
+            const addToCart = (product) => {
+                setCart(prev => {
+                    const existing = prev.find(item => item.id === product.id);
+                    if (existing) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+                    return [...prev, { ...product, quantity: 1 }];
+                });
+            };
+
+            const updateQuantity = (productId, quantity) => {
+                if (quantity < 1) {
+                    setCart(prev => prev.filter(item => item.id !== productId));
+                    return;
+                }
+                setCart(prev => prev.map(item => item.id === productId ? { ...item, quantity } : item));
+            };
+
+            const resetFilters = () => {
+                setFilters({ portfolio: [], series: [], ports: [], portMedia: [], downlinkSpeed: [], uplinkSpeed: [], poeType: [], poeBudget: null, layer: [], stacking: [] });
+                setSearchTerm('');
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                            <p className="text-gray-600">Chargement...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="bg-white rounded-lg shadow p-8 text-center">
+                            <p className="text-red-600 mb-4">{error}</p>
+                            <button onClick={fetchProducts} className="px-4 py-2 bg-blue-600 text-white rounded">Réessayer</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'compare') {
+                const compareProducts = products.filter(p => selectedProducts.includes(p.id));
+                return (
+                    <div className="min-h-screen bg-gray-50">
+                        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
+                            <div className="max-w-7xl mx-auto flex items-center justify-between">
+                                <h1 className="text-3xl font-bold">Comparaison ({compareProducts.length})</h1>
+                                <button onClick={() => setView('selector')} className="px-6 py-2 bg-white text-blue-600 rounded-lg">← Retour</button>
+                            </div>
+                        </div>
+                        <div className="max-w-7xl mx-auto p-6 overflow-x-auto">
+                            <div className="bg-white rounded-lg shadow">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left font-semibold">Caractéristiques</th>
+                                            {compareProducts.map(p => (
+                                                <th key={p.id} className="px-6 py-4 text-center min-w-48">
+                                                    <div className="font-semibold">{p.name}</div>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        <tr className="bg-blue-50">
+                                            <td className="px-6 py-4 font-medium">Prix</td>
+                                            {compareProducts.map(p => (
+                                                <td key={p.id} className="px-6 py-4 text-center text-xl font-bold text-blue-600">
+                                                    €{parseFloat(p.price).toFixed(0)}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                        <tr>
+                                            <td className="px-6 py-4 font-medium">Série</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.series}</td>)}
+                                        </tr>
+                                        <tr className="bg-gray-50">
+                                            <td className="px-6 py-4 font-medium">Ports</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.ports}</td>)}
+                                        </tr>
+                                        <tr>
+                                            <td className="px-6 py-4 font-medium">Vitesse</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.downlink_speed}</td>)}
+                                        </tr>
+                                        <tr className="bg-gray-50">
+                                            <td className="px-6 py-4 font-medium">Type</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.port_media}</td>)}
+                                        </tr>
+                                        <tr>
+                                            <td className="px-6 py-4 font-medium">PoE</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.poe_type}</td>)}
+                                        </tr>
+                                        <tr className="bg-gray-50">
+                                            <td className="px-6 py-4 font-medium">Budget PoE</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.poe_budget}W</td>)}
+                                        </tr>
+                                        <tr>
+                                            <td className="px-6 py-4 font-medium">Uplinks</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.uplink_speed}</td>)}
+                                        </tr>
+                                        <tr className="bg-gray-50">
+                                            <td className="px-6 py-4 font-medium">Niveau</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.layer}</td>)}
+                                        </tr>
+                                        <tr>
+                                            <td className="px-6 py-4 font-medium">Stacking</td>
+                                            {compareProducts.map(p => <td key={p.id} className="px-6 py-4 text-center">{p.stacking}</td>)}
+                                        </tr>
+                                        <tr className="bg-blue-50">
+                                            <td className="px-6 py-4 font-medium">Actions</td>
+                                            {compareProducts.map(p => (
+                                                <td key={p.id} className="px-6 py-4 text-center">
+                                                    <button onClick={() => addToCart(p)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                                        Ajouter
+                                                    </button>
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'cart') {
+                const total = cart.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+                return (
+                    <div className="min-h-screen bg-gray-50">
+                        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
+                            <div className="max-w-7xl mx-auto flex items-center justify-between">
+                                <h1 className="text-3xl font-bold">Panier ({cart.length})</h1>
+                                <button onClick={() => setView('selector')} className="px-6 py-2 bg-white text-blue-600 rounded-lg">← Retour</button>
+                            </div>
+                        </div>
+                        <div className="max-w-7xl mx-auto p-6">
+                            {cart.length === 0 ? (
+                                <div className="bg-white rounded-lg shadow p-12 text-center">
+                                    <p className="text-xl text-gray-500 mb-4">Votre panier est vide</p>
+                                    <button onClick={() => setView('selector')} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Commencer</button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-3 gap-6">
+                                    <div className="col-span-2 space-y-4">
+                                        {cart.map(item => (
+                                            <div key={item.id} className="bg-white rounded-lg shadow p-4">
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div>
+                                                        <h3 className="font-semibold text-lg">{item.name}</h3>
+                                                        <p className="text-sm text-gray-600">{item.id}</p>
+                                                    </div>
+                                                    <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} className="p-1 hover:bg-red-100 rounded text-red-600">×</button>
+                                                </div>
+                                                <div className="flex items-center justify-between pt-3 border-t">
+                                                    <div className="flex items-center gap-3">
+                                                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-8 h-8 bg-gray-100 rounded hover:bg-gray-200">-</button>
+                                                        <span className="font-medium w-8 text-center">{item.quantity}</span>
+                                                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-8 h-8 bg-gray-100 rounded hover:bg-gray-200">+</button>
+                                                    </div>
+                                                    <div className="text-xl font-bold text-blue-600">€{(parseFloat(item.price) * item.quantity).toFixed(0)}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="col-span-1">
+                                        <div className="bg-white rounded-lg shadow p-6 sticky top-6">
+                                            <h2 className="text-xl font-bold mb-4">Résumé</h2>
+                                            <div className="flex justify-between text-lg font-bold mb-6">
+                                                <span>Total</span>
+                                                <span className="text-blue-600">€{total.toFixed(0)}</span>
+                                            </div>
+                                            <button onClick={() => alert('Export Excel')} className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Exporter</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            const allPortfolios = ['Cisco Business', 'Cisco Meraki', 'Cisco Enterprise Catalyst', 'Cisco Switching', 'Cisco IoT', 'Nexus'];
+            const allSeriesList = ['Cisco 1200 Series', 'Cisco 1300 Series'];
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <div style={{backgroundColor: '#07182D'}} className="text-white shadow-lg">
+    <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+            <button className="text-white hover:bg-gray-700 p-2 rounded">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
             </button>
-          </div>
-        </div>
-      </section>
-
-      <hr class="border-slate-800" />
-
-      <!-- UPLINKS -->
-      <section class="space-y-3">
-        <h3 class="text-sm font-semibold text-slate-200">Uplink ports</h3>
-
-        <!-- Uplink Throughput -->
-        <div>
-          <div class="text-xs text-slate-400 mb-1">Uplink Throughput</div>
-          <div class="flex flex-col gap-1 text-sm">
-            <label class="inline-flex items-center gap-2" v-for="t in uplinkThroughputOptions" :key="'upl_'+t.value">
-              <input type="checkbox" class="rounded"
-                     :checked="filters.uplinks.has(t.value)"
-                     :disabled="!availability.uplinks.has(t.value)"
-                     @change="tryToggleSet('uplinks', t.value)" />
-              <span :class="{'text-slate-500': !availability.uplinks.has(t.value)}">{{ t.label }}</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Modular uplinks -->
-        <div class="flex items-center justify-between">
-          <span class="text-sm">Include Modular uplinks</span>
-          <label class="inline-flex items-center cursor-pointer">
-            <input type="checkbox" class="sr-only peer"
-                   :checked="filters.modular===true"
-                   :disabled="!availability.modularTrue"
-                   @change="tryToggleBoolean('modular')" />
-            <div class="w-10 h-6 bg-slate-700 peer-checked:bg-sky-600 rounded-full relative transition">
-              <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition peer-checked:translate-x-4"></div>
+            <div className="flex items-center gap-3">
+                <img src="/images/cisco-logo-white.png" alt="Cisco" className="h-8" />
+                <div>
+                    <div className="text-xs text-gray-400">Cisco</div>
+                    <h1 className="text-xl font-bold">Switching Selector</h1>
+                </div>
             </div>
-          </label>
         </div>
-
-        <!-- Number of uplinks -->
-        <div>
-          <div class="text-xs text-slate-400 mb-1">Number of Uplinks</div>
-          <div class="flex flex-wrap gap-2">
-            <button v-for="n in [0,2,4,6,8,12]" :key="'nu_'+n"
-                    @click="trySelect('numUplinks', n)"
-                    class="px-3 py-1.5 rounded-lg border text-sm"
-                    :class="[
-                      filters.numUplinks===n ? 'bg-sky-600 border-sky-500' : 'bg-slate-900 border-slate-700',
-                      !availability.numUplinks.has(n) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                    ]"
-                    :disabled="!availability.numUplinks.has(n)">
-              {{ n }}
-            </button>
-          </div>
+        <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-300">{products.length} produits</span>
         </div>
-      </section>
+    </div>
+</div>
+                    <div className="max-w-7xl mx-auto p-6">
+                        <div className="mb-6 bg-white rounded-lg shadow p-4">
+                            <div className="flex gap-4 items-center">
+                                <div className="flex-1 relative">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Rechercher..." 
+                                        className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" 
+                                        value={searchTerm} 
+                                        onChange={(e) => setSearchTerm(e.target.value)} 
+                                    />
+                                </div>
+                                <button onClick={resetFilters} className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">
+                                    Réinitialiser
+                                </button>
+                                <button onClick={() => setView('cart')} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                    🛒 Panier ({cart.length})
+                                </button>
+                            </div>
+                        </div>
 
-      <div class="pt-2 flex items-center justify-between text-xs text-slate-400">
-        <span><strong class="text-slate-100 text-sm">{{ results.length }}</strong> switches</span>
-        <button @click="reset" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-sm">Reset</button>
-      </div>
-    </aside>
+                        <div className="grid grid-cols-12 gap-6">
+                            <div className="col-span-3">
+                                <div className="bg-white rounded-lg shadow p-4 sticky top-6">
+                                    <h2 className="text-lg font-semibold mb-4">Filtres</h2>
+                                    <div className="space-y-4">
+                                        <div className="border-b pb-4">
+                                            <h3 className="font-medium mb-2 text-sm">Nombre de ports</h3>
+                                            {[8, 10, 12, 16, 24, 48].map(port => (
+                                                <div 
+                                                    key={port}
+                                                    onClick={() => availableOptions.ports.includes(port) && toggleFilter('ports', port)} 
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer ${!availableOptions.ports.includes(port) ? 'opacity-40' : 'hover:bg-blue-50'} ${filters.ports.includes(port) ? 'bg-blue-100' : ''}`}
+                                                >
+                                                    <input type="checkbox" checked={filters.ports.includes(port)} readOnly />
+                                                    <span className="text-sm">{port} ports</span>
+                                                </div>
+                                            ))}
+                                        </div>
 
-    <!-- Résultats -->
-    <section class="bg-slate-950 border border-slate-800 rounded-xl p-3">
-      <h2 class="text-sm font-semibold text-sky-300 mb-3">Results</h2>
-      <div v-if="loading" class="text-sm text-slate-400 p-3">Loading products…</div>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <article v-for="p in results" :key="p.sku" class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
-          <h3 class="text-sm font-semibold">{{ p.name }}</h3>
-          <div class="flex flex-wrap gap-2 text-xs">
-            <span class="px-2 py-0.5 rounded-full border border-slate-700">{{ p.family }} · {{ p.series }}</span>
-            <span class="px-2 py-0.5 rounded-full border border-slate-700">{{ p.downlink.throughput }} · {{ p.downlink.type }}</span>
-            <span class="px-2 py-0.5 rounded-full border border-slate-700">{{ p.ports_access }} ports</span>
-            <span class="px-2 py-0.5 rounded-full border border-slate-700">Uplinks: {{ (p.uplink?.types||[]).join('/') }} · {{ p.uplink?.count ?? '—' }}</span>
-            <span class="px-2 py-0.5 rounded-full border border-slate-700">{{ p.os }}</span>
-          </div>
-          <p class="text-[11px] text-slate-500">SKU: {{ p.sku }}</p>
-        </article>
-      </div>
-    </section>
-  </main>
+                                        <div className="border-b pb-4">
+                                            <h3 className="font-medium mb-2 text-sm">Type de ports</h3>
+                                            {['Cuivre', 'Fibre'].map(media => (
+                                                <div 
+                                                    key={media}
+                                                    onClick={() => availableOptions.portMedias.includes(media) && toggleFilter('portMedia', media)} 
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer ${!availableOptions.portMedias.includes(media) ? 'opacity-40' : 'hover:bg-blue-50'} ${filters.portMedia.includes(media) ? 'bg-blue-100' : ''}`}
+                                                >
+                                                    <input type="checkbox" checked={filters.portMedia.includes(media)} readOnly />
+                                                    <span className="text-sm">{media}</span>
+                                                </div>
+                                            ))}
+                                        </div>
 
-  <script>
-  const { createApp, ref, reactive, computed, onMounted } = Vue;
+                                        <div className="border-b pb-4">
+                                            <h3 className="font-medium mb-2 text-sm">Vitesse Downlink</h3>
+                                            {['1G', 'mGig', '10G'].map(speed => (
+                                                <div 
+                                                    key={speed}
+                                                    onClick={() => availableOptions.downlinkSpeeds.includes(speed) && toggleFilter('downlinkSpeed', speed)} 
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer ${!availableOptions.downlinkSpeeds.includes(speed) ? 'opacity-40' : 'hover:bg-blue-50'} ${filters.downlinkSpeed.includes(speed) ? 'bg-blue-100' : ''}`}
+                                                >
+                                                    <input type="checkbox" checked={filters.downlinkSpeed.includes(speed)} readOnly />
+                                                    <span className="text-sm">{speed}</span>
+                                                </div>
+                                            ))}
+                                        </div>
 
-  // Options affichées (adapter si besoin)
-  const throughputOptions = [
-    { value:'FE',   label:'Fast Ethernet (FE)' },
-    { value:'GE',   label:'Gigabit Ethernet (GE)' },
-    { value:'mGig', label:'Multi Gigabit Ethernet (mGig)' },
-    { value:'10G',  label:'10 Gigabits' } // cas châssis/linecards si présent dans ton JSON
-  ];
-  const portTypeOptions = [
-    { value:'Copper', label:'Copper' },
-    { value:'Fiber',  label:'Fiber'  }
-  ];
-  const uplinkThroughputOptions = [
-    { value:'GE',  label:'Gigabit Ethernet (GE)' },
-    { value:'mGig',label:'Multi Gigabit Ethernet (mGig)' },
-    { value:'10G', label:'10 Gigabits' },
-    { value:'25G', label:'25 Gigabits' },
-    { value:'40G', label:'40 Gigabits' },
-    { value:'100G',label:'100 Gigabits' }
-  ];
-  const portBuckets = [
-    { key:'LE5',    label:'≤5',    matches:n=>n<=5 },
-    { key:'8_12',   label:'8–12',  matches:n=>n>=8  && n<=12 },
-    { key:'16_24',  label:'16–24', matches:n=>n>=16 && n<=24 },
-    { key:'32_48',  label:'32–48', matches:n=>n>=32 && n<=48 }
-  ];
+                                        <div className="border-b pb-4">
+                                            <h3 className="font-medium mb-2 text-sm">Uplinks</h3>
+                                            {['1G', '10G'].map(speed => (
+                                                <div 
+                                                    key={speed}
+                                                    onClick={() => availableOptions.uplinkSpeeds.includes(speed) && toggleFilter('uplinkSpeed', speed)} 
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer ${!availableOptions.uplinkSpeeds.includes(speed) ? 'opacity-40' : 'hover:bg-blue-50'} ${filters.uplinkSpeed.includes(speed) ? 'bg-blue-100' : ''}`}
+                                                >
+                                                    <input type="checkbox" checked={filters.uplinkSpeed.includes(speed)} readOnly />
+                                                    <span className="text-sm">{speed}</span>
+                                                </div>
+                                            ))}
+                                        </div>
 
-  createApp({
-    setup(){
-      const PRODUCTS = ref([]);
-      const loading = ref(true);
+                                        <div className="border-b pb-4">
+                                            <h3 className="font-medium mb-2 text-sm">Power Ethernet</h3>
+                                            {['Non PoE', 'PoE+ 30W'].map(poe => (
+                                                <div 
+                                                    key={poe}
+                                                    onClick={() => availableOptions.poeTypes.includes(poe) && toggleFilter('poeType', poe)} 
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer ${!availableOptions.poeTypes.includes(poe) ? 'opacity-40' : 'hover:bg-blue-50'} ${filters.poeType.includes(poe) ? 'bg-blue-100' : ''}`}
+                                                >
+                                                    <input type="checkbox" checked={filters.poeType.includes(poe)} readOnly />
+                                                    <span className="text-sm">{poe}</span>
+                                                </div>
+                                            ))}
+                                        </div>
 
-      // Filtres neutres (rien de coché par défaut)
-      const filters = reactive({
-        lan: new Set(),          // FE/GE/mGig/10G
-        portTypes: new Set(),    // Copper/Fiber
-        lanPorts: null,          // bucket
-        uplinks: new Set(),      // GE/mGig/10G/25G/40G/100G
-        modular: null,           // null = indifférent, true = requis
-        numUplinks: null         // null = indifférent, sinon nombre exact
-      });
+                                        <div className="border-b pb-4">
+                                            <h3 className="font-medium mb-2 text-sm">Niveau</h3>
+                                            {['Niveau 2', 'Niveau 3 statique'].map(layer => (
+                                                <div 
+                                                    key={layer}
+                                                    onClick={() => availableOptions.layers.includes(layer) && toggleFilter('layer', layer)} 
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer ${!availableOptions.layers.includes(layer) ? 'opacity-40' : 'hover:bg-blue-50'} ${filters.layer.includes(layer) ? 'bg-blue-100' : ''}`}
+                                                >
+                                                    <input type="checkbox" checked={filters.layer.includes(layer)} readOnly />
+                                                    <span className="text-sm">{layer}</span>
+                                                </div>
+                                            ))}
+                                        </div>
 
-      onMounted(async () => {
-        try {
-          const res = await fetch('data/products.json', { cache:'no-store' });
-          PRODUCTS.value = await res.json();
-        } catch (e) {
-          console.error('Erreur de chargement du JSON:', e);
-          PRODUCTS.value = []; // évite crash UI
-        } finally {
-          loading.value = false;
+                                        <div>
+                                            <h3 className="font-medium mb-2 text-sm">Stacking</h3>
+                                            {['No', 'Yes'].map(stack => (
+                                                <div 
+                                                    key={stack}
+                                                    onClick={() => availableOptions.stackings.includes(stack) && toggleFilter('stacking', stack)} 
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer ${!availableOptions.stackings.includes(stack) ? 'opacity-40' : 'hover:bg-blue-50'} ${filters.stacking.includes(stack) ? 'bg-blue-100' : ''}`}
+                                                >
+                                                    <input type="checkbox" checked={filters.stacking.includes(stack)} readOnly />
+                                                    <span className="text-sm">{stack}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="col-span-9">
+                                <div className="bg-white rounded-lg shadow p-4 mb-4">
+                                    <div className="mb-4">
+                                        <h3 className="font-semibold mb-3">Gammes</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {allPortfolios.map(portfolio => (
+                                                <button 
+                                                    key={portfolio}
+                                                    onClick={() => toggleFilter('portfolio', portfolio)} 
+                                                    className={`px-3 py-1 rounded-full text-sm ${filters.portfolio.includes(portfolio) ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                                >
+                                                    {portfolio}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="mb-4 pb-4 border-b">
+                                        <h3 className="font-semibold mb-3">Séries</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {allSeriesList.map(series => (
+                                                <button 
+                                                    key={series}
+                                                    onClick={() => toggleFilter('series', series)} 
+                                                    className={`px-3 py-1 rounded-full text-sm ${filters.series.includes(series) ? 'bg-orange-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                                >
+                                                    {series}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <p className="text-2xl font-bold text-blue-600">{filteredProducts.length}</p>
+                                            <p className="text-sm text-gray-600">produit(s)</p>
+                                        </div>
+                                        {selectedProducts.length > 0 && (
+                                            <button onClick={() => setView('compare')} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                                📊 Comparer ({selectedProducts.length})
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    {filteredProducts.map(product => (
+                                        <div 
+                                            key={product.id} 
+                                            className={`bg-white rounded-lg shadow hover:shadow-lg p-4 border-2 ${selectedProducts.includes(product.id) ? 'border-blue-500' : 'border-transparent'}`}
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <h3 className="font-semibold text-lg">{product.name}</h3>
+                                                <button 
+                                                    onClick={() => toggleProductSelection(product.id)} 
+                                                    className="p-1 hover:bg-gray-100 rounded"
+                                                >
+                                                    <input type="checkbox" checked={selectedProducts.includes(product.id)} readOnly />
+                                                </button>
+                                            </div>
+                                            <div className="flex gap-1 mb-3">
+                                                <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700">{product.series}</span>
+                                                <span className="px-2 py-1 text-xs rounded bg-gray-100">{product.downlink_speed}</span>
+                                            </div>
+                                            <div className="space-y-1 text-sm mb-3">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Ports:</span>
+                                                    <span>{product.ports}x {product.downlink_speed}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Type:</span>
+                                                    <span>{product.port_media}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">PoE:</span>
+                                                    <span>{product.poe_type}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Niveau:</span>
+                                                    <span>{product.layer}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between pt-3 border-t">
+                                                <span className="text-2xl font-bold text-blue-600">
+                                                    €{parseFloat(product.price).toFixed(0)}
+                                                </span>
+                                                <button 
+                                                    onClick={() => addToCart(product)} 
+                                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                >
+                                                    Ajouter
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {filteredProducts.length === 0 && (
+                                    <div className="text-center py-12 bg-white rounded-lg shadow">
+                                        <p className="text-gray-500 text-lg">Aucun produit ne correspond</p>
+                                        <button 
+                                            onClick={resetFilters} 
+                                            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg"
+                                        >
+                                            Réinitialiser
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
         }
-      });
 
-      // Filtrage générique
-      function computeResults(state){
-        return PRODUCTS.value.filter(p => {
-          if(state.lan.size && !state.lan.has(p.downlink?.throughput)) return false;
-          if(state.portTypes.size && !state.portTypes.has(p.downlink?.type)) return false;
-          if(state.lanPorts){
-            const b = portBuckets.find(x => x.key === state.lanPorts);
-            if(b && !b.matches(p.ports_access||0)) return false;
-          }
-          if(state.uplinks.size){
-            const ups = p.uplink?.throughput || [];
-            const ok = ups.some(t => state.uplinks.has(t));
-            if(!ok) return false;
-          }
-          if(state.modular === true && !p.uplink?.modular) return false;
-          if(state.numUplinks!==null && (p.uplink?.count !== state.numUplinks)) return false;
-          return true;
-        });
-      }
-
-      const results = computed(() => computeResults(filters));
-
-      // Disponibilités dynamiques (pour griser les options impossibles)
-      const availability = computed(() => {
-        // Base = résultats courants ; si 0 (au tout début ou si bug),
-        // on retombe sur tout le catalogue pour ne jamais bloquer l'UI.
-        const base = results.value.length ? results.value : PRODUCTS.value;
-
-        const lan = new Set(base.map(p => p.downlink?.throughput).filter(Boolean));
-        const portTypes = new Set(base.map(p => p.downlink?.type).filter(Boolean));
-        const lanPorts = new Set(
-          portBuckets.filter(b => base.some(p => b.matches(p.ports_access||0))).map(b => b.key)
-        );
-        const uplinks = new Set(base.flatMap(p => p.uplink?.throughput || []));
-        const numUplinks = new Set(base.map(p => p.uplink?.count).filter(v => v!==undefined));
-        const modularTrue = base.some(p => p.uplink?.modular);
-
-        return { lan, portTypes, lanPorts, uplinks, numUplinks, modularTrue };
-      });
-
-      // Handlers “no‑zero” (on simule avant d’appliquer)
-      function cloneState(){
-        return {
-          lan: new Set(filters.lan),
-          portTypes: new Set(filters.portTypes),
-          lanPorts: filters.lanPorts,
-          uplinks: new Set(filters.uplinks),
-          modular: filters.modular,
-          numUplinks: filters.numUplinks
-        };
-      }
-      function tryToggleSet(key, value){
-        const next = cloneState();
-        const set = next[key]; set.has(value)?set.delete(value):set.add(value);
-        if (computeResults(next).length===0) return; // bloqué: mènerait à 0
-        filters[key].has(value)?filters[key].delete(value):filters[key].add(value);
-      }
-      function trySelect(key, value){
-        const next = cloneState();
-        next[key] = (next[key]===value ? null : value);
-        if (computeResults(next).length===0) return;
-        filters[key] = (filters[key]===value ? null : value);
-      }
-      function tryToggleBoolean(key){
-        const next = cloneState();
-        next[key] = (next[key]===true ? null : true); // null <-> true
-        if (computeResults(next).length===0) return;
-        filters[key] = (filters[key]===true ? null : true);
-      }
-      function reset(){
-        filters.lan.clear(); filters.portTypes.clear(); filters.uplinks.clear();
-        filters.lanPorts = null; filters.modular = null; filters.numUplinks = null;
-      }
-
-      return {
-        loading, results, availability, filters,
-        throughputOptions, portTypeOptions, uplinkThroughputOptions, portBuckets,
-        tryToggleSet, trySelect, tryToggleBoolean, reset
-      };
-    }
-  }).mount('#app');
-  </script>
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SwitchSelector />);
+    </script>
 </body>
 </html>
