@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Backflip Trainer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+
+        .canvas-container {
+            background: #0f0f23;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stat:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #888;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .stat-value.highlight {
+            color: #00d4ff;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speed-control input {
+            flex: 1;
+            accent-color: #00d4ff;
+        }
+
+        .speed-value {
+            min-width: 40px;
+            text-align: right;
+            color: #00d4ff;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            transition: width 0.3s ease;
+        }
+
+        .generation-info {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .generation-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .fitness-graph {
+            height: 100px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .instructions {
+            font-size: 0.85rem;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Backflip Trainer</h1>
+            <p class="subtitle">Entrainez une intelligence artificielle a realiser des backflips parfaits</p>
+        </header>
+
+        <div class="main-content">
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <div class="generation-info">
+                        <div class="generation-number" id="generation">1</div>
+                        <div style="color: #888; font-size: 0.9rem;">Generation</div>
+                    </div>
+
+                    <div class="stat">
+                        <span class="stat-label">Meilleur score</span>
+                        <span class="stat-value highlight" id="bestScore">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Score moyen</span>
+                        <span class="stat-value" id="avgScore">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Creatures actives</span>
+                        <span class="stat-value" id="aliveCount">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Temps</span>
+                        <span class="stat-value" id="timeLeft">10.0s</span>
+                    </div>
+
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="timeProgress" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>Controles</h3>
+                    <div class="controls">
+                        <button class="btn-primary" id="startBtn">Demarrer</button>
+                        <button class="btn-secondary" id="pauseBtn">Pause</button>
+                        <button class="btn-danger" id="resetBtn">Reinitialiser</button>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 0.9rem; color: #888;">Vitesse de simulation</label>
+                        <div class="speed-control">
+                            <input type="range" id="speedSlider" min="1" max="10" value="1">
+                            <span class="speed-value" id="speedValue">1x</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 0.9rem; color: #888;">Population</label>
+                        <div class="speed-control">
+                            <input type="range" id="populationSlider" min="10" max="100" value="50" step="10">
+                            <span class="speed-value" id="populationValue">50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>Evolution du fitness</h3>
+                    <canvas id="graphCanvas" class="fitness-graph"></canvas>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #00d4ff;"></div>
+                            <span>Meilleur</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #7b2cbf;"></div>
+                            <span>Moyenne</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>Comment ca marche ?</h3>
+                    <p class="instructions">
+                        Chaque creature possede un reseau de neurones qui controle ses muscles.
+                        Un algorithme genetique selectionne les meilleurs individus et les fait evoluer
+                        generation apres generation jusqu'a maitriser le backflip !
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // Configuration
+        // ============================================
+        const CONFIG = {
+            populationSize: 50,
+            simulationTime: 10, // seconds
+            gravity: 980,
+            groundY: 500,
+            mutationRate: 0.1,
+            mutationStrength: 0.3,
+            eliteCount: 5,
+        };
+
+        // ============================================
+        // Neural Network
+        // ============================================
+        class NeuralNetwork {
+            constructor(layers) {
+                this.layers = layers;
+                this.weights = [];
+                this.biases = [];
+
+                for (let i = 0; i < layers.length - 1; i++) {
+                    this.weights.push(this.randomMatrix(layers[i + 1], layers[i]));
+                    this.biases.push(this.randomArray(layers[i + 1]));
+                }
+            }
+
+            randomMatrix(rows, cols) {
+                return Array(rows).fill().map(() =>
+                    Array(cols).fill().map(() => (Math.random() * 2 - 1))
+                );
+            }
+
+            randomArray(size) {
+                return Array(size).fill().map(() => (Math.random() * 2 - 1));
+            }
+
+            forward(inputs) {
+                let current = inputs;
+
+                for (let i = 0; i < this.weights.length; i++) {
+                    const next = [];
+                    for (let j = 0; j < this.weights[i].length; j++) {
+                        let sum = this.biases[i][j];
+                        for (let k = 0; k < current.length; k++) {
+                            sum += this.weights[i][j][k] * current[k];
+                        }
+                        next.push(Math.tanh(sum));
+                    }
+                    current = next;
+                }
+
+                return current;
+            }
+
+            copy() {
+                const nn = new NeuralNetwork(this.layers);
+                nn.weights = this.weights.map(w => w.map(row => [...row]));
+                nn.biases = this.biases.map(b => [...b]);
+                return nn;
+            }
+
+            mutate(rate, strength) {
+                for (let i = 0; i < this.weights.length; i++) {
+                    for (let j = 0; j < this.weights[i].length; j++) {
+                        for (let k = 0; k < this.weights[i][j].length; k++) {
+                            if (Math.random() < rate) {
+                                this.weights[i][j][k] += (Math.random() * 2 - 1) * strength;
+                            }
+                        }
+                    }
+                    for (let j = 0; j < this.biases[i].length; j++) {
+                        if (Math.random() < rate) {
+                            this.biases[i][j] += (Math.random() * 2 - 1) * strength;
+                        }
+                    }
+                }
+            }
+
+            crossover(other) {
+                const child = this.copy();
+                for (let i = 0; i < this.weights.length; i++) {
+                    for (let j = 0; j < this.weights[i].length; j++) {
+                        for (let k = 0; k < this.weights[i][j].length; k++) {
+                            if (Math.random() < 0.5) {
+                                child.weights[i][j][k] = other.weights[i][j][k];
+                            }
+                        }
+                    }
+                    for (let j = 0; j < this.biases[i].length; j++) {
+                        if (Math.random() < 0.5) {
+                            child.biases[i][j] = other.biases[i][j];
+                        }
+                    }
+                }
+                return child;
+            }
+        }
+
+        // ============================================
+        // Physics - Ragdoll Body
+        // ============================================
+        class Joint {
+            constructor(x, y, mass = 1) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.mass = mass;
+                this.startX = x;
+                this.startY = y;
+            }
+
+            reset() {
+                this.x = this.startX;
+                this.y = this.startY;
+                this.vx = 0;
+                this.vy = 0;
+            }
+        }
+
+        class Bone {
+            constructor(joint1, joint2, length, stiffness = 0.9) {
+                this.joint1 = joint1;
+                this.joint2 = joint2;
+                this.length = length;
+                this.stiffness = stiffness;
+            }
+
+            constrain() {
+                const dx = this.joint2.x - this.joint1.x;
+                const dy = this.joint2.y - this.joint1.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist === 0) return;
+
+                const diff = (dist - this.length) / dist;
+                const offsetX = dx * diff * 0.5 * this.stiffness;
+                const offsetY = dy * diff * 0.5 * this.stiffness;
+
+                const totalMass = this.joint1.mass + this.joint2.mass;
+                const ratio1 = this.joint2.mass / totalMass;
+                const ratio2 = this.joint1.mass / totalMass;
+
+                this.joint1.x += offsetX * ratio1;
+                this.joint1.y += offsetY * ratio1;
+                this.joint2.x -= offsetX * ratio2;
+                this.joint2.y -= offsetY * ratio2;
+            }
+        }
+
+        class Muscle {
+            constructor(joint1, joint2, minLength, maxLength) {
+                this.joint1 = joint1;
+                this.joint2 = joint2;
+                this.minLength = minLength;
+                this.maxLength = maxLength;
+                this.activation = 0;
+            }
+
+            apply(strength = 500) {
+                const dx = this.joint2.x - this.joint1.x;
+                const dy = this.joint2.y - this.joint1.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist === 0) return;
+
+                const targetLength = this.minLength + (this.maxLength - this.minLength) * (this.activation * 0.5 + 0.5);
+                const force = (dist - targetLength) * strength;
+
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+
+                this.joint1.vx += fx / this.joint1.mass;
+                this.joint1.vy += fy / this.joint1.mass;
+                this.joint2.vx -= fx / this.joint2.mass;
+                this.joint2.vy -= fy / this.joint2.mass;
+            }
+        }
+
+        class Creature {
+            constructor(x, y) {
+                this.startX = x;
+                this.startY = y;
+                this.alive = true;
+                this.fitness = 0;
+                this.totalRotation = 0;
+                this.lastAngle = 0;
+                this.maxHeight = 0;
+                this.landedBonus = 0;
+
+                // Create joints for humanoid figure
+                // Head
+                this.head = new Joint(x, y - 80, 1);
+                // Torso
+                this.neck = new Joint(x, y - 60, 1);
+                this.hip = new Joint(x, y, 2);
+                // Arms
+                this.leftShoulder = new Joint(x - 15, y - 55, 0.5);
+                this.rightShoulder = new Joint(x + 15, y - 55, 0.5);
+                this.leftHand = new Joint(x - 35, y - 35, 0.5);
+                this.rightHand = new Joint(x + 35, y - 35, 0.5);
+                // Legs
+                this.leftKnee = new Joint(x - 10, y + 35, 1);
+                this.rightKnee = new Joint(x + 10, y + 35, 1);
+                this.leftFoot = new Joint(x - 10, y + 70, 1);
+                this.rightFoot = new Joint(x + 10, y + 70, 1);
+
+                this.joints = [
+                    this.head, this.neck, this.hip,
+                    this.leftShoulder, this.rightShoulder,
+                    this.leftHand, this.rightHand,
+                    this.leftKnee, this.rightKnee,
+                    this.leftFoot, this.rightFoot
+                ];
+
+                // Bones (structural connections)
+                this.bones = [
+                    new Bone(this.head, this.neck, 20),
+                    new Bone(this.neck, this.hip, 60),
+                    new Bone(this.neck, this.leftShoulder, 15),
+                    new Bone(this.neck, this.rightShoulder, 15),
+                    new Bone(this.leftShoulder, this.leftHand, 30),
+                    new Bone(this.rightShoulder, this.rightHand, 30),
+                    new Bone(this.hip, this.leftKnee, 35),
+                    new Bone(this.hip, this.rightKnee, 35),
+                    new Bone(this.leftKnee, this.leftFoot, 35),
+                    new Bone(this.rightKnee, this.rightFoot, 35),
+                ];
+
+                // Muscles (controllable by neural network)
+                this.muscles = [
+                    new Muscle(this.neck, this.leftHand, 20, 50),   // Left arm
+                    new Muscle(this.neck, this.rightHand, 20, 50),  // Right arm
+                    new Muscle(this.hip, this.leftKnee, 25, 45),    // Left thigh
+                    new Muscle(this.hip, this.rightKnee, 25, 45),   // Right thigh
+                    new Muscle(this.leftKnee, this.leftFoot, 25, 45),  // Left calf
+                    new Muscle(this.rightKnee, this.rightFoot, 25, 45), // Right calf
+                    new Muscle(this.neck, this.hip, 40, 80),        // Core/torso
+                    new Muscle(this.hip, this.leftFoot, 50, 90),    // Left leg stretch
+                    new Muscle(this.hip, this.rightFoot, 50, 90),   // Right leg stretch
+                ];
+
+                // Neural network: inputs -> hidden -> outputs
+                // Inputs: joint positions/velocities (normalized), body angle
+                // Outputs: muscle activations
+                const inputSize = this.joints.length * 4 + 2; // x, y, vx, vy per joint + angle + angular velocity
+                this.brain = new NeuralNetwork([inputSize, 24, 16, this.muscles.length]);
+            }
+
+            reset() {
+                const offsetX = this.startX - this.joints[0].startX;
+                const offsetY = this.startY - this.joints[0].startY;
+
+                this.joints.forEach(j => {
+                    j.startX += offsetX;
+                    j.startY += offsetY;
+                    j.reset();
+                });
+
+                this.alive = true;
+                this.fitness = 0;
+                this.totalRotation = 0;
+                this.lastAngle = 0;
+                this.maxHeight = 0;
+                this.landedBonus = 0;
+            }
+
+            getInputs() {
+                const inputs = [];
+                const centerX = this.hip.x;
+                const centerY = this.hip.y;
+
+                // Normalize positions relative to hip
+                this.joints.forEach(j => {
+                    inputs.push((j.x - centerX) / 100);
+                    inputs.push((j.y - centerY) / 100);
+                    inputs.push(j.vx / 500);
+                    inputs.push(j.vy / 500);
+                });
+
+                // Body angle (torso)
+                const bodyAngle = Math.atan2(this.neck.x - this.hip.x, this.hip.y - this.neck.y);
+                inputs.push(Math.sin(bodyAngle));
+                inputs.push(Math.cos(bodyAngle));
+
+                return inputs;
+            }
+
+            think() {
+                const inputs = this.getInputs();
+                const outputs = this.brain.forward(inputs);
+
+                for (let i = 0; i < this.muscles.length; i++) {
+                    this.muscles[i].activation = outputs[i];
+                }
+            }
+
+            update(dt, groundY) {
+                if (!this.alive) return;
+
+                // Think
+                this.think();
+
+                // Apply muscles
+                this.muscles.forEach(m => m.apply(400));
+
+                // Apply gravity and update positions
+                this.joints.forEach(j => {
+                    j.vy += CONFIG.gravity * dt;
+                    j.x += j.vx * dt;
+                    j.y += j.vy * dt;
+
+                    // Ground collision
+                    if (j.y > groundY) {
+                        j.y = groundY;
+                        j.vy *= -0.3;
+                        j.vx *= 0.8;
+                    }
+                });
+
+                // Apply bone constraints multiple times for stability
+                for (let i = 0; i < 5; i++) {
+                    this.bones.forEach(b => b.constrain());
+
+                    // Keep feet on ground if touching
+                    this.joints.forEach(j => {
+                        if (j.y > groundY) {
+                            j.y = groundY;
+                        }
+                    });
+                }
+
+                // Track rotation
+                const bodyAngle = Math.atan2(this.neck.x - this.hip.x, this.hip.y - this.neck.y);
+                let angleDiff = bodyAngle - this.lastAngle;
+
+                // Handle angle wrapping
+                if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                this.totalRotation += angleDiff;
+                this.lastAngle = bodyAngle;
+
+                // Track max height
+                const avgHeight = groundY - (this.joints.reduce((sum, j) => sum + j.y, 0) / this.joints.length);
+                this.maxHeight = Math.max(this.maxHeight, avgHeight);
+            }
+
+            calculateFitness(groundY) {
+                // Reward for rotation (backflips)
+                const rotations = Math.abs(this.totalRotation) / (Math.PI * 2);
+                let fitness = rotations * 1000;
+
+                // Bonus for height achieved
+                fitness += this.maxHeight * 0.5;
+
+                // Bonus for being upright at the end
+                const bodyAngle = Math.atan2(this.neck.x - this.hip.x, this.hip.y - this.neck.y);
+                const uprightness = Math.cos(bodyAngle);
+                if (uprightness > 0.7) {
+                    fitness += uprightness * 200;
+                }
+
+                // Bonus for feet on ground at end
+                const feetOnGround = (groundY - this.leftFoot.y < 5) && (groundY - this.rightFoot.y < 5);
+                const headAboveFeet = this.head.y < this.leftFoot.y && this.head.y < this.rightFoot.y;
+
+                if (feetOnGround && headAboveFeet && uprightness > 0.5) {
+                    fitness += 500; // Landing bonus
+                }
+
+                // Penalty for head hitting ground
+                if (this.head.y >= groundY - 5) {
+                    fitness *= 0.5;
+                }
+
+                this.fitness = Math.max(0, fitness);
+                return this.fitness;
+            }
+
+            draw(ctx, alpha = 1) {
+                if (!this.alive && alpha === 1) return;
+
+                ctx.globalAlpha = alpha;
+
+                // Determine color based on fitness
+                const hue = Math.min(120, this.fitness / 10);
+                const color = `hsl(${hue}, 70%, 50%)`;
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+
+                // Draw bones
+                this.bones.forEach(bone => {
+                    ctx.beginPath();
+                    ctx.moveTo(bone.joint1.x, bone.joint1.y);
+                    ctx.lineTo(bone.joint2.x, bone.joint2.y);
+                    ctx.stroke();
+                });
+
+                // Draw head
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(this.head.x, this.head.y, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw joints
+                ctx.fillStyle = color;
+                this.joints.forEach(j => {
+                    ctx.beginPath();
+                    ctx.arc(j.x, j.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // ============================================
+        // Genetic Algorithm
+        // ============================================
+        class Population {
+            constructor(size, startX, startY) {
+                this.size = size;
+                this.startX = startX;
+                this.startY = startY;
+                this.creatures = [];
+                this.generation = 1;
+                this.bestFitness = 0;
+                this.avgFitness = 0;
+                this.history = [];
+
+                this.initialize();
+            }
+
+            initialize() {
+                this.creatures = [];
+                for (let i = 0; i < this.size; i++) {
+                    this.creatures.push(new Creature(this.startX, this.startY));
+                }
+            }
+
+            update(dt, groundY) {
+                this.creatures.forEach(c => c.update(dt, groundY));
+            }
+
+            evolve(groundY) {
+                // Calculate fitness for all creatures
+                this.creatures.forEach(c => c.calculateFitness(groundY));
+
+                // Sort by fitness
+                this.creatures.sort((a, b) => b.fitness - a.fitness);
+
+                // Record stats
+                this.bestFitness = this.creatures[0].fitness;
+                this.avgFitness = this.creatures.reduce((sum, c) => sum + c.fitness, 0) / this.creatures.length;
+
+                this.history.push({
+                    best: this.bestFitness,
+                    avg: this.avgFitness
+                });
+
+                // Create new generation
+                const newCreatures = [];
+
+                // Keep elite
+                for (let i = 0; i < CONFIG.eliteCount && i < this.creatures.length; i++) {
+                    const elite = new Creature(this.startX, this.startY);
+                    elite.brain = this.creatures[i].brain.copy();
+                    newCreatures.push(elite);
+                }
+
+                // Create rest through selection and crossover
+                while (newCreatures.length < this.size) {
+                    const parent1 = this.selectParent();
+                    const parent2 = this.selectParent();
+
+                    const child = new Creature(this.startX, this.startY);
+                    child.brain = parent1.brain.crossover(parent2.brain);
+                    child.brain.mutate(CONFIG.mutationRate, CONFIG.mutationStrength);
+
+                    newCreatures.push(child);
+                }
+
+                this.creatures = newCreatures;
+                this.generation++;
+
+                // Reset all creatures
+                this.creatures.forEach(c => c.reset());
+            }
+
+            selectParent() {
+                // Tournament selection
+                const tournamentSize = 5;
+                let best = null;
+
+                for (let i = 0; i < tournamentSize; i++) {
+                    const candidate = this.creatures[Math.floor(Math.random() * this.creatures.length)];
+                    if (!best || candidate.fitness > best.fitness) {
+                        best = candidate;
+                    }
+                }
+
+                return best;
+            }
+
+            draw(ctx) {
+                // Draw all creatures with low opacity
+                this.creatures.forEach(c => c.draw(ctx, 0.3));
+
+                // Draw best creature with full opacity
+                if (this.creatures.length > 0) {
+                    const best = this.creatures.reduce((a, b) => a.fitness > b.fitness ? a : b);
+                    best.draw(ctx, 1);
+                }
+            }
+        }
+
+        // ============================================
+        // Main Game
+        // ============================================
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.graphCanvas = document.getElementById('graphCanvas');
+                this.graphCtx = this.graphCanvas.getContext('2d');
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+
+                this.population = null;
+                this.running = false;
+                this.paused = false;
+                this.simulationTime = 0;
+                this.speed = 1;
+                this.lastTime = 0;
+
+                this.setupUI();
+                this.init();
+            }
+
+            resize() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = 600;
+
+                this.graphCanvas.width = this.graphCanvas.clientWidth;
+                this.graphCanvas.height = this.graphCanvas.clientHeight;
+            }
+
+            setupUI() {
+                document.getElementById('startBtn').addEventListener('click', () => this.start());
+                document.getElementById('pauseBtn').addEventListener('click', () => this.togglePause());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+
+                const speedSlider = document.getElementById('speedSlider');
+                speedSlider.addEventListener('input', (e) => {
+                    this.speed = parseInt(e.target.value);
+                    document.getElementById('speedValue').textContent = this.speed + 'x';
+                });
+
+                const popSlider = document.getElementById('populationSlider');
+                popSlider.addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    document.getElementById('populationValue').textContent = value;
+                    CONFIG.populationSize = value;
+                });
+            }
+
+            init() {
+                const startX = this.canvas.width / 2;
+                const startY = CONFIG.groundY - 70;
+                this.population = new Population(CONFIG.populationSize, startX, startY);
+                this.simulationTime = 0;
+                this.draw();
+            }
+
+            start() {
+                if (!this.running) {
+                    this.running = true;
+                    this.paused = false;
+                    this.lastTime = performance.now();
+                    document.getElementById('startBtn').textContent = 'En cours...';
+                    document.getElementById('startBtn').disabled = true;
+                    this.loop();
+                }
+            }
+
+            togglePause() {
+                this.paused = !this.paused;
+                document.getElementById('pauseBtn').textContent = this.paused ? 'Reprendre' : 'Pause';
+                if (!this.paused) {
+                    this.lastTime = performance.now();
+                }
+            }
+
+            reset() {
+                this.running = false;
+                this.paused = false;
+                document.getElementById('startBtn').textContent = 'Demarrer';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('pauseBtn').textContent = 'Pause';
+                this.init();
+                this.updateUI();
+            }
+
+            loop() {
+                if (!this.running) return;
+
+                if (!this.paused) {
+                    const now = performance.now();
+                    const realDt = (now - this.lastTime) / 1000;
+                    this.lastTime = now;
+
+                    // Run multiple simulation steps per frame based on speed
+                    for (let i = 0; i < this.speed; i++) {
+                        const dt = Math.min(realDt, 0.016); // Cap at 60fps equivalent
+                        this.simulationTime += dt;
+
+                        this.population.update(dt, CONFIG.groundY);
+
+                        // Check if generation is done
+                        if (this.simulationTime >= CONFIG.simulationTime) {
+                            this.population.evolve(CONFIG.groundY);
+                            this.simulationTime = 0;
+                            this.drawGraph();
+                        }
+                    }
+                }
+
+                this.draw();
+                this.updateUI();
+
+                requestAnimationFrame(() => this.loop());
+            }
+
+            draw() {
+                const ctx = this.ctx;
+                const width = this.canvas.width;
+                const height = this.canvas.height;
+
+                // Clear
+                ctx.fillStyle = '#0f0f23';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw ground
+                ctx.fillStyle = '#1a1a3e';
+                ctx.fillRect(0, CONFIG.groundY, width, height - CONFIG.groundY);
+
+                ctx.strokeStyle = '#2a2a5e';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, CONFIG.groundY);
+                ctx.lineTo(width, CONFIG.groundY);
+                ctx.stroke();
+
+                // Draw grid
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+                ctx.lineWidth = 1;
+                for (let x = 0; x < width; x += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < height; y += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(width, y);
+                    ctx.stroke();
+                }
+
+                // Draw creatures
+                if (this.population) {
+                    this.population.draw(ctx);
+                }
+            }
+
+            drawGraph() {
+                const ctx = this.graphCtx;
+                const width = this.graphCanvas.width;
+                const height = this.graphCanvas.height;
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(0, 0, width, height);
+
+                const history = this.population.history;
+                if (history.length < 2) return;
+
+                const maxFitness = Math.max(...history.map(h => h.best), 100);
+                const xStep = width / Math.max(history.length - 1, 1);
+
+                // Draw best fitness line
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                history.forEach((h, i) => {
+                    const x = i * xStep;
+                    const y = height - (h.best / maxFitness) * height;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Draw average fitness line
+                ctx.strokeStyle = '#7b2cbf';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                history.forEach((h, i) => {
+                    const x = i * xStep;
+                    const y = height - (h.avg / maxFitness) * height;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+
+            updateUI() {
+                if (!this.population) return;
+
+                document.getElementById('generation').textContent = this.population.generation;
+                document.getElementById('bestScore').textContent = Math.round(this.population.bestFitness);
+                document.getElementById('avgScore').textContent = Math.round(this.population.avgFitness);
+                document.getElementById('aliveCount').textContent = this.population.creatures.filter(c => c.alive).length;
+
+                const timeLeft = Math.max(0, CONFIG.simulationTime - this.simulationTime);
+                document.getElementById('timeLeft').textContent = timeLeft.toFixed(1) + 's';
+                document.getElementById('timeProgress').style.width = ((CONFIG.simulationTime - timeLeft) / CONFIG.simulationTime * 100) + '%';
+            }
+        }
+
+        // Start the game
+        const game = new Game();
+    </script>
+</body>
+</html>
